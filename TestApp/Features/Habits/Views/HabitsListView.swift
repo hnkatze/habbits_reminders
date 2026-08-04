@@ -24,6 +24,8 @@ struct HabitsListView: View {
   @State private var showingAddPlace = false
   @State private var showingStats = false
   @State private var showingMap = false
+  // Maps link handed in by the Share Extension via the testapp:// URL scheme.
+  @State private var incomingMapLink = ""
 
   // Foreground-only: feeds the per-place distance shown in the rows.
   @State private var locationManager = LocationManager()
@@ -83,6 +85,7 @@ struct HabitsListView: View {
               Label("Habit", systemImage: "repeat")
             }
             Button {
+              incomingMapLink = ""
               showingAddPlace = true
             } label: {
               Label("Location reminder", systemImage: "mappin")
@@ -118,7 +121,9 @@ struct HabitsListView: View {
         }
       }
       .sheet(isPresented: $showingAddHabit) { AddHabitView() }
-      .sheet(isPresented: $showingAddPlace) { AddPlaceReminderView() }
+      .sheet(isPresented: $showingAddPlace) {
+        AddPlaceReminderView(initialMapLink: incomingMapLink)
+      }
       .sheet(isPresented: $showingStats) { HabitStatsView() }
       .sheet(isPresented: $showingMap) { PlacesMapView() }
     }
@@ -141,6 +146,16 @@ struct HabitsListView: View {
     .onChange(of: locationManager.currentLocation) { _, newValue in
       guard let newValue, liveActivity.isTracking else { return }
       Task { await liveActivity.updateFromLocation(newValue) }
+    }
+    // Handoff from the Share Extension: open the New Place form pre-filled with
+    // the shared Maps link, which the form resolves into a coordinate.
+    .onOpenURL { url in
+      guard url.scheme == "testapp", url.host == "add-place",
+        let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+        let link = components.queryItems?.first(where: { $0.name == "url" })?.value
+      else { return }
+      incomingMapLink = link
+      showingAddPlace = true
     }
   }
 
