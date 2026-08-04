@@ -73,6 +73,11 @@ extension PlaceReminder {
     CLLocation(latitude: latitude, longitude: longitude)
   }
 
+  // The place as a map coordinate, for MapKit annotations and circles.
+  var coordinate: CLLocationCoordinate2D {
+    CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+  }
+
   // Distance in meters from a given location (e.g. the user's current one).
   func distance(from other: CLLocation) -> CLLocationDistance {
     location.distance(from: other)

@@ -23,6 +23,7 @@ struct HabitsListView: View {
   @State private var showingAddHabit = false
   @State private var showingAddPlace = false
   @State private var showingStats = false
+  @State private var showingMap = false
 
   // Foreground-only: feeds the per-place distance shown in the rows.
   @State private var locationManager = LocationManager()
@@ -92,6 +93,14 @@ struct HabitsListView: View {
         }
         ToolbarItem(placement: .primaryAction) {
           Button {
+            showingMap = true
+          } label: {
+            Label("Map", systemImage: "map")
+          }
+          .disabled(places.isEmpty)
+        }
+        ToolbarItem(placement: .primaryAction) {
+          Button {
             showingStats = true
           } label: {
             Label("Stats", systemImage: "chart.bar.fill")
@@ -111,6 +120,7 @@ struct HabitsListView: View {
       .sheet(isPresented: $showingAddHabit) { AddHabitView() }
       .sheet(isPresented: $showingAddPlace) { AddPlaceReminderView() }
       .sheet(isPresented: $showingStats) { HabitStatsView() }
+      .sheet(isPresented: $showingMap) { PlacesMapView() }
     }
     // Applied from a real View (which reacts to @AppStorage) at the root of
     // the hierarchy — not from a sheet, so it flips reliably both ways.
