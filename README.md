@@ -127,4 +127,4 @@ This is a personal project, but if you fork it:
 
 ## License
 
-No license file yet — all rights reserved by default. Add a `LICENSE` if you intend to share or open-source it.
+[MIT](LICENSE) © 2026 Camilo Henriquez
