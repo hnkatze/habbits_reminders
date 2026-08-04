@@ -10,9 +10,9 @@
 		C4C6DF06301CFCEB002B5D44 /* TestAppWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4C6DF03301CFCEB002B5D44 /* TestAppWidgetBundle.swift */; };
 		C4C6DF07301CFCEB002B5D44 /* TrackingLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4C6DF04301CFCEB002B5D44 /* TrackingLiveActivity.swift */; };
 		C4C6DF08301CFCEB002B5D44 /* TrackingActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4C6DF05301CFCEB002B5D44 /* TrackingActivityAttributes.swift */; };
+		C4C6DF09301CFCEB002B5D44 /* TestAppWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C4C6DF01301CFCEB002B5D44 /* TestAppWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		C4C6DF16301CFCEB002B5D44 /* HabitTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4C6DF15301CFCEB002B5D44 /* HabitTimerAttributes.swift */; };
 		C4C6DF18301CFCEB002B5D44 /* HabitTimerLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4C6DF17301CFCEB002B5D44 /* HabitTimerLiveActivity.swift */; };
-		C4C6DF09301CFCEB002B5D44 /* TestAppWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C4C6DF01301CFCEB002B5D44 /* TestAppWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */

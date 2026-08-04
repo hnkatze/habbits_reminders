@@ -30,6 +30,21 @@ struct PlaceReminderDetailView: View {
     }
     .navigationTitle(reminder.name)
     .toolbarTitleDisplayMode(.inline)
+    .toolbar {
+      ToolbarItem(placement: .primaryAction) {
+        if let shareURL {
+          ShareLink(item: shareURL) {
+            Image(systemName: "square.and.arrow.up")
+          }
+        }
+      }
+    }
+  }
+
+  private var shareURL: URL? {
+    let query = reminder.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+    return URL(
+      string: "https://maps.apple.com/?ll=\(reminder.latitude),\(reminder.longitude)&q=\(query)")
   }
 
   // MARK: - Hero

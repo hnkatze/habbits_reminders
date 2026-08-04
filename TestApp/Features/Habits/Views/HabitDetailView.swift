@@ -29,6 +29,20 @@ struct HabitDetailView: View {
       .padding()
     }
     .navigationTitle(habit.name)
+    .toolbar {
+      ToolbarItem(placement: .primaryAction) {
+        ShareLink(item: shareText) {
+          Image(systemName: "square.and.arrow.up")
+        }
+      }
+    }
+  }
+
+  private var shareText: String {
+    let streak = habit.currentStreak
+    return streak > 0
+      ? "I'm on a \(streak)-day streak for \(habit.name)! 🔥"
+      : "I'm building a new habit: \(habit.name)."
   }
 
   // MARK: - Header
