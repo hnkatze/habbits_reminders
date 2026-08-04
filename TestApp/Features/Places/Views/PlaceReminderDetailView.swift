@@ -2,78 +2,229 @@
 //  PlaceReminderDetailView.swift
 //  TestApp
 //
-//  Detail for a location reminder: shows the place, and either the note or an
-//  editable checklist (tap to toggle, swipe to delete, add new items).
+//  Detail for a location reminder: a hero with live distance and status, a
+//  toggle to arm/mute the arrival geofence, the tracking Live Activity, and the
+//  note or editable checklist.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct PlaceReminderDetailView: View {
-    @Bindable var reminder: PlaceReminder
-    @Environment(\.modelContext) private var context
+  @Bindable var reminder: PlaceReminder
+  @Environment(\.modelContext) private var context
+  @Environment(LocationManager.self) private var locationManager
+  @Environment(LiveActivityManager.self) private var liveActivity
 
-    @State private var newItem = ""
+  @State private var newItem = ""
 
-    var body: some View {
-        List {
-            Section("Place") {
-                Label(reminder.name, systemImage: reminder.iconName)
-                Label(
-                    "\(reminder.latitude, format: .number.precision(.fractionLength(4))), \(reminder.longitude, format: .number.precision(.fractionLength(4)))",
-                    systemImage: "mappin.and.ellipse"
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                Text("Radius: \(Int(reminder.radius)) m")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+  private var color: Color { Color(hex: reminder.colorHex) }
 
-            if reminder.isList {
-                Section("Checklist") {
-                    ForEach(reminder.items) { item in
-                        Button {
-                            item.isDone.toggle()
-                        } label: {
-                            HStack {
-                                Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(item.isDone ? .green : .secondary)
-                                Text(item.text)
-                                    .strikethrough(item.isDone)
-                                    .foregroundStyle(item.isDone ? .secondary : .primary)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .onDelete(perform: deleteItems)
+  var body: some View {
+    List {
+      hero
+      statusSection
+      trackingSection
+      contentSection
+      detailsSection
+    }
+    .navigationTitle(reminder.name)
+    .toolbarTitleDisplayMode(.inline)
+  }
 
-                    HStack {
-                        TextField("Add item", text: $newItem)
-                        Button("Add") { addItem() }
-                            .disabled(newItem.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
-                }
-            } else {
-                Section("Note") {
-                    Text(reminder.note.isEmpty ? "—" : reminder.note)
-                }
-            }
+  // MARK: - Hero
+  private var hero: some View {
+    Section {
+      VStack(spacing: 12) {
+        Image(systemName: reminder.iconName)
+          .font(.system(size: 34, weight: .semibold))
+          .foregroundStyle(.white)
+          .frame(width: 78, height: 78)
+          .background(color.gradient, in: .rect(cornerRadius: 20, style: .continuous))
+          .shadow(color: color.opacity(0.4), radius: 8, y: 4)
+
+        Text(reminder.name)
+          .font(.title2.weight(.bold))
+          .multilineTextAlignment(.center)
+
+        statusPill
+        distanceView
+      }
+      .frame(maxWidth: .infinity)
+      .padding(.vertical, 10)
+      .listRowBackground(Color.clear)
+    }
+  }
+
+  private var statusPill: some View {
+    Label(
+      reminder.isActive ? "Active" : "Muted",
+      systemImage: reminder.isActive ? "dot.radiowaves.left.and.right" : "bell.slash.fill"
+    )
+    .font(.caption.weight(.semibold))
+    .foregroundStyle(reminder.isActive ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
+    .padding(.horizontal, 12)
+    .padding(.vertical, 6)
+    .background(
+      reminder.isActive ? AnyShapeStyle(Color.green.opacity(0.15)) : AnyShapeStyle(.quaternary),
+      in: .capsule
+    )
+    .animation(.snappy, value: reminder.isActive)
+  }
+
+  @ViewBuilder
+  private var distanceView: some View {
+    if let location = locationManager.currentLocation {
+      Label(
+        "\(DistanceFormatter.string(forMeters: reminder.distance(from: location))) away",
+        systemImage: "location.fill"
+      )
+      .font(.subheadline.weight(.medium))
+      .foregroundStyle(.secondary)
+      .contentTransition(.numericText())
+    } else {
+      HStack(spacing: 6) {
+        ProgressView().controlSize(.small)
+        Text("Locating…")
+      }
+      .font(.subheadline)
+      .foregroundStyle(.secondary)
+    }
+  }
+
+  // MARK: - Status (arm / mute the arrival geofence)
+  private var statusSection: some View {
+    Section {
+      Toggle(isOn: $reminder.isActive) {
+        Label("Arrival reminder", systemImage: "bell.badge")
+      }
+      .tint(color)
+      .onChange(of: reminder.isActive) { _, active in
+        updateGeofence(active: active)
+      }
+    } footer: {
+      Text(
+        reminder.isActive
+          ? "You'll be reminded when you arrive here."
+          : "Muted — no reminder at this place. Turn it back on anytime."
+      )
+    }
+  }
+
+  // MARK: - Tracking Live Activity
+  @ViewBuilder
+  private var trackingSection: some View {
+    Section {
+      if liveActivity.isTracking(reminder) {
+        Button(role: .destructive) {
+          Task { await liveActivity.stop() }
+          locationManager.stopBackgroundUpdates()
+        } label: {
+          Label("Stop Live Activity", systemImage: "stop.circle.fill")
         }
-        .navigationTitle(reminder.name)
-    }
-
-    private func addItem() {
-        let text = newItem.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
-        context.insert(ChecklistItem(text: text, reminder: reminder))
-        newItem = ""
-    }
-
-    private func deleteItems(at offsets: IndexSet) {
-        let sorted = reminder.items
-        for index in offsets {
-            context.delete(sorted[index])
+      } else {
+        Button {
+          locationManager.requestAlwaysAuthorization()
+          locationManager.startBackgroundUpdates()
+          liveActivity.start(tracking: reminder, from: locationManager.currentLocation)
+        } label: {
+          Label("Track with Live Activity", systemImage: "location.circle.fill")
         }
+        .disabled(liveActivity.isTracking)
+      }
+    } footer: {
+      if liveActivity.isTracking && !liveActivity.isTracking(reminder) {
+        Text("Stop the current tracking to follow this place instead.")
+      } else {
+        Text(
+          "Shows live distance on the Lock Screen and Dynamic Island while you head there. Uses background location only while active."
+        )
+      }
     }
+  }
+
+  // MARK: - Content (note or checklist)
+  @ViewBuilder
+  private var contentSection: some View {
+    if reminder.isList {
+      Section("Checklist") {
+        ForEach(reminder.items) { item in
+          Button {
+            item.isDone.toggle()
+          } label: {
+            HStack {
+              Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(item.isDone ? .green : .secondary)
+              Text(item.text)
+                .strikethrough(item.isDone)
+                .foregroundStyle(item.isDone ? .secondary : .primary)
+            }
+          }
+          .buttonStyle(.plain)
+        }
+        .onDelete(perform: deleteItems)
+
+        HStack {
+          TextField("Add item", text: $newItem)
+          Button("Add") { addItem() }
+            .disabled(newItem.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+      }
+    } else {
+      Section("Note") {
+        Text(reminder.note.isEmpty ? "—" : reminder.note)
+      }
+    }
+  }
+
+  // MARK: - Details
+  private var detailsSection: some View {
+    Section("Details") {
+      LabeledContent("Coordinates") {
+        Text(
+          "\(reminder.latitude, format: .number.precision(.fractionLength(4))), \(reminder.longitude, format: .number.precision(.fractionLength(4)))"
+        )
+        .foregroundStyle(.secondary)
+      }
+      LabeledContent("Radius", value: "\(Int(reminder.radius)) m")
+      LabeledContent("Added") {
+        Text(reminder.createdAt, format: .dateTime.month().day().year())
+          .foregroundStyle(.secondary)
+      }
+    }
+  }
+
+  // MARK: - Geofence arm / mute
+  private func updateGeofence(active: Bool) {
+    if active {
+      locationManager.requestAlwaysAuthorization()
+      let id = reminder.notificationID
+      let name = reminder.name
+      let lat = reminder.latitude
+      let lng = reminder.longitude
+      let radius = reminder.radius
+      Task {
+        if await NotificationManager.requestAuthorization() {
+          NotificationManager.scheduleLocationReminder(
+            id: id, habitName: name, latitude: lat, longitude: lng, radius: radius)
+        }
+      }
+    } else {
+      NotificationManager.cancelLocationReminder(id: reminder.notificationID)
+    }
+  }
+
+  private func addItem() {
+    let text = newItem.trimmingCharacters(in: .whitespaces)
+    guard !text.isEmpty else { return }
+    context.insert(ChecklistItem(text: text, reminder: reminder))
+    newItem = ""
+  }
+
+  private func deleteItems(at offsets: IndexSet) {
+    let sorted = reminder.items
+    for index in offsets {
+      context.delete(sorted[index])
+    }
+  }
 }
