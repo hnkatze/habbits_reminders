@@ -30,12 +30,6 @@ struct AddPlaceReminderView: View {
   @State private var locationManager = LocationManager()
   @FocusState private var nameFocused: Bool
 
-  // Optional pre-filled Maps link — handed off from the Share Extension via the
-  // testapp:// URL. Empty when opened normally from the "+" menu.
-  init(initialMapLink: String = "") {
-    _mapLink = State(initialValue: initialMapLink)
-  }
-
   private let icons = [
     "cart.fill", "bag.fill", "fork.knife", "pills.fill",
     "fuelpump.fill", "house.fill", "building.2.fill", "mappin.circle.fill",
