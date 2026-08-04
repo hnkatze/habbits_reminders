@@ -4,17 +4,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-TestApp is a single-screen SwiftUI iOS app (a bootstrapped Xcode template). It renders an animated "Have a great day!" greeting screen. There are no tests, no third-party dependencies, and no package manager — it is a pure Xcode project.
+TestApp is a SwiftUI iOS app for reminders, built on SwiftData. It has two kinds
+of reminders:
+
+- **Habits** — recurring habits with streaks, a daily completion toggle, an
+  optional daily local notification, and a stats screen (Swift Charts).
+- **Places** — location reminders that fire when you arrive at a place
+  (geofence), carrying either a text note or a checklist.
+
+The root screen (`HabitsListView`) lists both, plus a theme toggle that cycles
+system → light → dark. There are no third-party dependencies and no package
+manager — it is a pure Xcode project.
 
 ## Requirements
 
 - **Xcode 26+** and the iOS 26 SDK. `IPHONEOS_DEPLOYMENT_TARGET = 26.0`.
-- The UI relies on iOS 26 **Liquid Glass** APIs (`glassEffect`, `GlassEffectContainer`) and SF Symbols animation APIs (`symbolEffect`). These do not exist on earlier SDKs — building against an older toolchain will fail.
-- Swift 5 language mode. Supported platforms: iOS, macOS, visionOS (`TARGETED_DEVICE_FAMILY = 1,2,7`).
+- Swift 5 language mode. Supported platforms: iOS, macOS, visionOS
+  (`TARGETED_DEVICE_FAMILY = 1,2,7`).
+- Geofence reminders need **"Always"** location authorization; local
+  notifications need notification authorization. Both work on a free account —
+  no paid capability or App Group required. `UNLocationNotificationTrigger` is
+  iOS-only; on macOS the geofence scheduling is a no-op.
 
 ## Commands
 
-Scheme and target are both `TestApp`. There is no test target.
+Scheme and target are both `TestApp`.
 
 ```bash
 # Build for the simulator
@@ -27,21 +41,68 @@ xcodebuild -scheme TestApp -destination 'generic/platform=iOS' build
 xcodebuild -scheme TestApp clean
 ```
 
-Day-to-day, prefer building/running from Xcode (⌘R) or the SwiftUI preview (`#Preview` at the bottom of `ContentView.swift`), which is faster than a full `xcodebuild`.
+Day-to-day, prefer building/running from Xcode (⌘R) or a SwiftUI `#Preview`,
+which is faster than a full `xcodebuild`.
+
+The Xcode project uses **filesystem-synchronized groups**: files added under
+`TestApp/` are picked up automatically, so new `.swift` files do not need manual
+`.pbxproj` entries.
 
 ## Architecture
 
-The entire app is two files under `TestApp/`:
+Feature-first layout under `TestApp/`:
 
-- `TestAppApp.swift` — the `@main` `App` entry point. A single `WindowGroup` hosting `ContentView`.
-- `ContentView.swift` — the whole UI. The screen is composed as one `ZStack` (background gradient → floating stars → main `VStack`).
+- `App/` — n/a; the `@main` entry point is `TestAppApp.swift` at the root, whose
+  single `WindowGroup` hosts `HabitsListView` and installs the SwiftData
+  `.modelContainer(for: [Habit.self, PlaceReminder.self])`.
+- `Core/` — cross-cutting pieces: `Appearance` (theme enum persisted via
+  `@AppStorage`) and `Color+Hex` (build a `Color` from a stored `"#RRGGBB"`
+  string).
+- `Shared/Views/` — reusable UI shared across create sheets: `IconPickerGrid`
+  and `ColorPickerRow`. Both are built from real `Button`s with VoiceOver
+  traits (`.isSelected`), not tap gestures — reuse them instead of re-rolling a
+  picker.
+- `Features/Habits/` and `Features/Places/` — each split into `Models/`,
+  `Views/`, `Components/`, and (Habits) `Services/`.
 
-Structural conventions in `ContentView.swift` worth preserving when editing:
+### Data model (SwiftData `@Model`)
 
-- **Sub-sections are computed `View` properties** (`heroIconCluster`, `titleBlock`, `badgeRow`, `heroImage`, `ctaLabel`), not separate structs. Reusable pieces (`BadgeView`, `FloatingStarsView`) are extracted as top-level `struct`s. Sections are delimited with `// MARK: -` comments.
-- **Animation is state-driven.** Each animated element has its own `@State` boolean flag (`runnerBouncing`, `titleAppeared`, etc.). All flags flip to `true` in `startAnimations()`, called from `.onAppear`, and each view attaches its own `.animation(_:value:)` with a staggered `.delay(...)` to sequence the entrance choreography. To add an animated element, follow the same pattern: add a flag, set it in `startAnimations()`, bind it with `.animation(...value:)`.
+- `Habit` ↔ `HabitEntry` (one-to-many, `.cascade`). A `HabitEntry` records "done
+  on this date"; `Habit.currentStreak` / `isCompleted(on:)` are computed, never
+  stored.
+- `PlaceReminder` ↔ `ChecklistItem` (one-to-many, `.cascade`). `isList` picks
+  between the `note` string and the `items` checklist.
+- Each model owns a stable `notificationID` used to key its scheduled
+  notification / geofence.
+
+### Services (Habits/Services)
+
+- `NotificationManager` — `@MainActor` enum wrapping `UNUserNotificationCenter`.
+  Schedules the daily reminder (keyed by `notificationID`) and the geofence
+  reminder (keyed by `"loc-<notificationID>"` so the two never collide).
+  **Deleting a model must cancel its notifications first** (see
+  `HabitsListView.deleteHabits` / `deletePlaces`), otherwise repeating triggers
+  and monitored regions leak.
+- `LocationManager` — minimal `CLLocationManager` wrapper; its only job is to
+  request "Always" authorization for background region monitoring.
+- `MapLinkParser` / `MapLinkResolver` — turn a pasted Google/Apple Maps link
+  into coordinates. `MapLinkParser` extracts coords from a **full** link
+  offline (regex); `MapLinkResolver` first tries the parser, then follows a
+  network redirect for **short** share links (`maps.app.goo.gl`) and parses the
+  resolved URL. iOS limits an app to 20 monitored geofence regions.
+
+### Conventions worth preserving
+
+- **One type per file.** Sub-sections inside a screen are computed `View`
+  properties delimited with `// MARK: -`; genuinely reusable pieces are
+  top-level `struct`s (in `Shared/` when cross-feature, `Components/` when
+  feature-local).
+- **State** uses `@Observable` (e.g. `LocationManager`), not
+  `ObservableObject`.
+- **Theme** is applied via `.preferredColorScheme` from the root view (not from
+  a sheet, where it gets stuck).
 
 ## Assets
 
-- Images live in `TestApp/Assets.xcassets`. The custom photo `zerotow` is referenced type-safely as `Image(.zerotow)` (generated asset symbol), not by string name.
-- `AccentColor` and `AppIcon` are the default template asset sets.
+- Images live in `TestApp/Assets.xcassets`.
+- `AppIcon` is a custom icon; `AccentColor` is the default template asset set.
