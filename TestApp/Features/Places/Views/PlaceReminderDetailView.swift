@@ -17,6 +17,7 @@ struct PlaceReminderDetailView: View {
   @Environment(LiveActivityManager.self) private var liveActivity
 
   @State private var newItem = ""
+  @State private var showLimitAlert = false
 
   private var color: Color { Color(hex: reminder.colorHex) }
 
@@ -38,6 +39,13 @@ struct PlaceReminderDetailView: View {
           }
         }
       }
+    }
+    .alert("Active places limit reached", isPresented: $showLimitAlert) {
+      Button("OK", role: .cancel) {}
+    } message: {
+      Text(
+        "You can have up to \(PlaceReminder.activeLimit) active places at a time. Mute another place first, then turn this one on."
+      )
     }
   }
 
@@ -212,16 +220,31 @@ struct PlaceReminderDetailView: View {
   // MARK: - Geofence arm / mute
   private func updateGeofence(active: Bool) {
     if active {
+      // Enforce the active-places cap. Count OTHER armed places so the check is
+      // robust regardless of this reminder's just-flipped value.
+      let selfID = reminder.notificationID
+      let descriptor = FetchDescriptor<PlaceReminder>(
+        predicate: #Predicate { $0.isActive && $0.notificationID != selfID })
+      let others = (try? context.fetchCount(descriptor)) ?? 0
+      if others >= PlaceReminder.activeLimit {
+        reminder.isActive = false  // revert the toggle
+        showLimitAlert = true
+        return
+      }
+
       locationManager.requestAlwaysAuthorization()
       let id = reminder.notificationID
       let name = reminder.name
+      let icon = reminder.iconName
+      let color = reminder.colorHex
       let lat = reminder.latitude
       let lng = reminder.longitude
       let radius = reminder.radius
       Task {
         if await NotificationManager.requestAuthorization() {
           NotificationManager.scheduleLocationReminder(
-            id: id, habitName: name, latitude: lat, longitude: lng, radius: radius)
+            id: id, habitName: name, iconName: icon, colorHex: color,
+            latitude: lat, longitude: lng, radius: radius)
         }
       }
     } else {

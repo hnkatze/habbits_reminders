@@ -28,6 +28,7 @@ struct AddPlaceReminderView: View {
   @State private var draftItems: [DraftItem] = []
 
   @State private var locationManager = LocationManager()
+  @State private var showLimitAlert = false
   @FocusState private var nameFocused: Bool
 
   private let icons = [
@@ -83,7 +84,20 @@ struct AddPlaceReminderView: View {
         }
       }
       .onAppear { nameFocused = true }
+      .alert("Active places limit reached", isPresented: $showLimitAlert) {
+        Button("OK") { dismiss() }
+      } message: {
+        Text(
+          "You can have up to \(PlaceReminder.activeLimit) active places at a time. This one was saved muted — mute another place, then turn it on from its detail screen."
+        )
+      }
     }
+  }
+
+  // How many places currently have their geofence armed.
+  private func armedPlaceCount() -> Int {
+    let descriptor = FetchDescriptor<PlaceReminder>(predicate: #Predicate { $0.isActive })
+    return (try? context.fetchCount(descriptor)) ?? 0
   }
 
   // MARK: - Location
@@ -161,6 +175,9 @@ struct AddPlaceReminderView: View {
   private func save() {
     guard let coordinate = resolvedCoordinate else { return }
 
+    // At the limit, save the place muted and don't arm its geofence.
+    let atLimit = armedPlaceCount() >= PlaceReminder.activeLimit
+
     let reminder = PlaceReminder(
       name: name.trimmingCharacters(in: .whitespaces),
       iconName: iconName,
@@ -171,6 +188,7 @@ struct AddPlaceReminderView: View {
       isList: isList,
       note: isList ? "" : note.trimmingCharacters(in: .whitespaces)
     )
+    reminder.isActive = !atLimit
     context.insert(reminder)
 
     if isList {
@@ -181,9 +199,16 @@ struct AddPlaceReminderView: View {
       }
     }
 
+    guard !atLimit else {
+      showLimitAlert = true  // the alert's OK dismisses the sheet
+      return
+    }
+
     locationManager.requestAlwaysAuthorization()
     let id = reminder.notificationID
     let reminderName = reminder.name
+    let icon = reminder.iconName
+    let color = reminder.colorHex
     let lat = coordinate.latitude
     let lng = coordinate.longitude
     let currentRadius = radius
@@ -192,6 +217,8 @@ struct AddPlaceReminderView: View {
         NotificationManager.scheduleLocationReminder(
           id: id,
           habitName: reminderName,
+          iconName: icon,
+          colorHex: color,
           latitude: lat,
           longitude: lng,
           radius: currentRadius

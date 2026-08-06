@@ -12,6 +12,10 @@ import SwiftData
 
 @Model
 final class PlaceReminder {
+  // Most active geofences we arm at once. iOS caps an app at 20 monitored
+  // regions; we stay well under that so there's always headroom.
+  static let activeLimit = 10
+
   var name: String
   var iconName: String
   var colorHex: String
