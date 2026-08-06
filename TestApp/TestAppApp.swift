@@ -7,9 +7,17 @@
 
 import SwiftData
 import SwiftUI
+import UserNotifications
 
 @main
 struct TestAppApp: App {
+  init() {
+    // Handle notification action buttons ("Done" / snooze) and register the
+    // action sets. Cross-platform: no UIApplicationDelegate needed.
+    UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+    NotificationManager.registerCategories()
+  }
+
   var body: some Scene {
     WindowGroup {
       HabitsListView()

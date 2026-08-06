@@ -20,6 +20,11 @@ final class Habit {
   // Optional daily reminder time. Optional → automatic SwiftData migration.
   var reminderTime: Date?
 
+  // Days the reminder fires on, as Calendar weekday numbers (1 = Sunday … 7 =
+  // Saturday). Defaults to every day → existing habits migrate to "daily" with
+  // no change in behavior.
+  var weekdays: [Int] = [1, 2, 3, 4, 5, 6, 7]
+
   // Optional focus-timer length in minutes. Drives the timer Live Activity.
   var durationMinutes: Int?
 
@@ -36,6 +41,7 @@ final class Habit {
     iconName: String = "star.fill",
     colorHex: String = "#FB0021",
     reminderTime: Date? = nil,
+    weekdays: [Int] = [1, 2, 3, 4, 5, 6, 7],
     durationMinutes: Int? = nil,
     createdAt: Date = .now
   ) {
@@ -43,6 +49,7 @@ final class Habit {
     self.iconName = iconName
     self.colorHex = colorHex
     self.reminderTime = reminderTime
+    self.weekdays = weekdays
     self.durationMinutes = durationMinutes
     self.notificationID = UUID().uuidString
     self.createdAt = createdAt

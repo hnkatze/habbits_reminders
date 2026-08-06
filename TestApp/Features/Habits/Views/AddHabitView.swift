@@ -18,6 +18,7 @@ struct AddHabitView: View {
   @State private var colorHex = "#FB0021"
   @State private var reminderEnabled = false
   @State private var reminderTime = Date()
+  @State private var weekdays: Set<Int> = [1, 2, 3, 4, 5, 6, 7]
   @State private var timerEnabled = false
   @State private var durationMinutes = 20
 
@@ -30,7 +31,10 @@ struct AddHabitView: View {
   private let colors = ["#FB0021", "#FF9500", "#34C759", "#007AFF", "#AF52DE", "#FF2D55"]
 
   private var isValid: Bool {
-    !name.trimmingCharacters(in: .whitespaces).isEmpty
+    guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
+    // A reminder with no days selected would never fire — require at least one.
+    if reminderEnabled && weekdays.isEmpty { return false }
+    return true
   }
 
   var body: some View {
@@ -56,6 +60,8 @@ struct AddHabitView: View {
               selection: $reminderTime,
               displayedComponents: .hourAndMinute
             )
+            WeekdayPicker(selection: $weekdays, tintHex: colorHex)
+              .padding(.vertical, 4)
           }
         }
 
@@ -84,11 +90,13 @@ struct AddHabitView: View {
 
   // MARK: - Save
   private func save() {
+    let sortedDays = weekdays.sorted()
     let habit = Habit(
       name: name.trimmingCharacters(in: .whitespaces),
       iconName: iconName,
       colorHex: colorHex,
       reminderTime: reminderEnabled ? reminderTime : nil,
+      weekdays: sortedDays,
       durationMinutes: timerEnabled ? durationMinutes : nil
     )
     context.insert(habit)
@@ -96,10 +104,14 @@ struct AddHabitView: View {
     if reminderEnabled {
       let id = habit.notificationID
       let habitName = habit.name
+      let icon = habit.iconName
+      let color = habit.colorHex
+      let days = sortedDays
       let time = reminderTime
       Task {
         if await NotificationManager.requestAuthorization() {
-          NotificationManager.scheduleDailyReminder(id: id, habitName: habitName, at: time)
+          NotificationManager.scheduleDailyReminder(
+            id: id, habitName: habitName, iconName: icon, colorHex: color, weekdays: days, at: time)
         }
       }
     }

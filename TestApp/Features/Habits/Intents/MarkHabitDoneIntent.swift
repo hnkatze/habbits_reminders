@@ -18,23 +18,14 @@ struct MarkHabitDoneIntent: AppIntent {
 
   @MainActor
   func perform() async throws -> some IntentResult & ProvidesDialog {
-    let context = AppModelContainer.shared.mainContext
-    let id = habit.id
-    let descriptor = FetchDescriptor<Habit>(predicate: #Predicate { $0.notificationID == id })
-
-    guard let model = try context.fetch(descriptor).first else {
+    guard let outcome = HabitCompletion.markDone(notificationID: habit.id) else {
       return .result(dialog: "I couldn't find that habit.")
     }
 
-    let calendar = Calendar.current
-    let alreadyDone = model.entries.contains { calendar.isDate($0.date, inSameDayAs: .now) }
-    if alreadyDone {
+    if outcome.wasAlreadyDone {
       return .result(
-        dialog: "\(model.name) is already done today — \(model.currentStreak)-day streak. 🔥")
+        dialog: "\(outcome.name) is already done today — \(outcome.streak)-day streak. 🔥")
     }
-
-    context.insert(HabitEntry(date: .now, habit: model))
-    try context.save()
-    return .result(dialog: "Marked \(model.name) as done. \(model.currentStreak)-day streak! 🔥")
+    return .result(dialog: "Marked \(outcome.name) as done. \(outcome.streak)-day streak! 🔥")
   }
 }
