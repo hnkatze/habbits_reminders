@@ -17,11 +17,17 @@ struct AddPlaceReminderView: View {
   @Environment(\.dismiss) private var dismiss
 
   @State private var name = ""
+  @State private var kind: PlaceKind = .generic
   @State private var iconName = "cart.fill"
   @State private var colorHex = "#007AFF"
 
   @State private var coordinate: CLLocationCoordinate2D?
   @State private var radius: Double = 150
+
+  // Parking-only extras.
+  @State private var parkingSpot = ""
+  @State private var setParkingMeter = false
+  @State private var parkingExpiry = Date.now.addingTimeInterval(3600)
 
   // Search-by-name state.
   @State private var searchQuery = ""
@@ -45,6 +51,7 @@ struct AddPlaceReminderView: View {
   private let icons = [
     "cart.fill", "bag.fill", "fork.knife", "pills.fill",
     "fuelpump.fill", "house.fill", "building.2.fill", "mappin.circle.fill",
+    "parkingsign.circle.fill", "dumbbell.fill", "airplane", "ticket.fill",
   ]
   private let colors = ["#007AFF", "#FB0021", "#FF9500", "#34C759", "#AF52DE", "#FF2D55"]
 
@@ -60,6 +67,14 @@ struct AddPlaceReminderView: View {
             .focused($nameFocused)
         }
 
+        Section("Type") {
+          Picker("Type", selection: $kind) {
+            ForEach(PlaceKind.allCases) { kind in
+              Label(kind.label, systemImage: kind.defaultIcon).tag(kind)
+            }
+          }
+        }
+
         Section("Icon") {
           IconPickerGrid(icons: icons, selection: $iconName, tintHex: colorHex)
         }
@@ -67,6 +82,10 @@ struct AddPlaceReminderView: View {
           ColorPickerRow(colors: colors, selection: $colorHex)
         }
         Section("Location") { locationSection }
+
+        if kind == .parking {
+          Section("Parking") { parkingSection }
+        }
 
         Section("Content") {
           Picker("Type", selection: $isList) {
@@ -96,6 +115,7 @@ struct AddPlaceReminderView: View {
         }
       }
       .onAppear { nameFocused = true }
+      .onChange(of: kind) { applyKindPreset() }
       .onChange(of: coordinate?.latitude) { autofillNameIfNeeded() }
       .onChange(of: locationManager.currentLocation?.coordinate.latitude) {
         adoptCurrentLocationIfAwaited()
@@ -260,6 +280,29 @@ struct AddPlaceReminderView: View {
     resolvingLink = false
   }
 
+  // MARK: - Parking
+  @ViewBuilder
+  private var parkingSection: some View {
+    TextField("Spot (e.g. B-24)", text: $parkingSpot)
+    Toggle("Set meter time", isOn: $setParkingMeter)
+    if setParkingMeter {
+      DatePicker(
+        "Expires",
+        selection: $parkingExpiry,
+        in: Date.now...,
+        displayedComponents: [.date, .hourAndMinute]
+      )
+    }
+  }
+
+  // Applying a kind presets the icon, tint, and content mode to sensible
+  // defaults for that template — the user can still override any of them after.
+  private func applyKindPreset() {
+    iconName = kind.defaultIcon
+    colorHex = kind.defaultColorHex
+    isList = kind.prefersList
+  }
+
   // MARK: - List editor
   @ViewBuilder
   private var listEditor: some View {
@@ -289,6 +332,9 @@ struct AddPlaceReminderView: View {
     // At the limit, save the place muted and don't arm its geofence.
     let atLimit = armedPlaceCount() >= PlaceReminder.activeLimit
 
+    let isParking = kind == .parking
+    let spot = parkingSpot.trimmingCharacters(in: .whitespaces)
+
     let reminder = PlaceReminder(
       name: name.trimmingCharacters(in: .whitespaces),
       iconName: iconName,
@@ -296,8 +342,11 @@ struct AddPlaceReminderView: View {
       latitude: coordinate.latitude,
       longitude: coordinate.longitude,
       radius: radius,
+      kind: kind,
       isList: isList,
-      note: isList ? "" : note.trimmingCharacters(in: .whitespaces)
+      note: isList ? "" : note.trimmingCharacters(in: .whitespaces),
+      parkingSpot: isParking && !spot.isEmpty ? spot : nil,
+      parkingExpiresAt: isParking && setParkingMeter ? parkingExpiry : nil
     )
     reminder.isActive = !atLimit
     context.insert(reminder)

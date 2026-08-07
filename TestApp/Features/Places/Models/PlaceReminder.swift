@@ -26,6 +26,14 @@ final class PlaceReminder {
   var radius: Double
   var notificationID: String = ""
 
+  // Which template this place follows. Stored as the raw String (see `kind`);
+  // defaults to generic so existing rows migrate automatically (lightweight).
+  var kindRaw: String = PlaceKind.generic.rawValue
+
+  // Parking-only extras. Optional with a nil default → lightweight migration.
+  var parkingSpot: String?
+  var parkingExpiresAt: Date?
+
   // Content mode: a free-text note, or a checklist of items.
   var isList: Bool
   var note: String
@@ -45,8 +53,11 @@ final class PlaceReminder {
     latitude: Double,
     longitude: Double,
     radius: Double = 150,
+    kind: PlaceKind = .generic,
     isList: Bool = false,
     note: String = "",
+    parkingSpot: String? = nil,
+    parkingExpiresAt: Date? = nil,
     createdAt: Date = .now
   ) {
     self.name = name
@@ -55,16 +66,37 @@ final class PlaceReminder {
     self.latitude = latitude
     self.longitude = longitude
     self.radius = radius
+    self.kindRaw = kind.rawValue
     self.isList = isList
     self.note = note
+    self.parkingSpot = parkingSpot
+    self.parkingExpiresAt = parkingExpiresAt
     self.notificationID = UUID().uuidString
     self.createdAt = createdAt
   }
 }
 
 extension PlaceReminder {
+  // The template this place follows, backed by `kindRaw`.
+  var kind: PlaceKind {
+    get { PlaceKind(rawValue: kindRaw) ?? .generic }
+    set { kindRaw = newValue.rawValue }
+  }
+
+  // Whether a parking place has a meter time set that is still in the future.
+  var hasActiveParkingMeter: Bool {
+    guard kind == .parking, let expiry = parkingExpiresAt else { return false }
+    return expiry > .now
+  }
+
   // Short description for the list row.
   var summary: String {
+    if kind == .parking, let expiry = parkingExpiresAt {
+      let spot = parkingSpot.map { "Spot \($0) · " } ?? ""
+      return spot
+        + (expiry > .now
+          ? "expires \(expiry.formatted(.relative(presentation: .named)))" : "expired")
+    }
     if isList {
       let done = items.filter(\.isDone).count
       return "\(done)/\(items.count) items"
