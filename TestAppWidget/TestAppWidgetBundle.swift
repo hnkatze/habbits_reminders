@@ -14,5 +14,6 @@ struct TestAppWidgetBundle: WidgetBundle {
   var body: some Widget {
     TrackingLiveActivity()
     HabitTimerLiveActivity()
+    ParkingLiveActivity()
   }
 }

@@ -13,6 +13,8 @@
 		C4C6DF09301CFCEB002B5D44 /* TestAppWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C4C6DF01301CFCEB002B5D44 /* TestAppWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		C4C6DF16301CFCEB002B5D44 /* HabitTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4C6DF15301CFCEB002B5D44 /* HabitTimerAttributes.swift */; };
 		C4C6DF18301CFCEB002B5D44 /* HabitTimerLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4C6DF17301CFCEB002B5D44 /* HabitTimerLiveActivity.swift */; };
+		AA11BB22CC33DD44EE55FF02 /* ParkingActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF01 /* ParkingActivityAttributes.swift */; };
+		AA11BB22CC33DD44EE55FF04 /* ParkingLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF03 /* ParkingLiveActivity.swift */; };
 		D1CE0F06301CFCEB002B5D44 /* NotificationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1CE0F03301CFCEB002B5D44 /* NotificationViewController.swift */; };
 		D1CE0F09301CFCEB002B5D44 /* TestAppNotificationContent.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D1CE0F01301CFCEB002B5D44 /* TestAppNotificationContent.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -66,6 +68,8 @@
 		C4C6DF05301CFCEB002B5D44 /* TrackingActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TrackingActivityAttributes.swift; path = TestApp/Features/Places/LiveActivity/TrackingActivityAttributes.swift; sourceTree = SOURCE_ROOT; };
 		C4C6DF15301CFCEB002B5D44 /* HabitTimerAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HabitTimerAttributes.swift; path = TestApp/Features/Habits/LiveActivity/HabitTimerAttributes.swift; sourceTree = SOURCE_ROOT; };
 		C4C6DF17301CFCEB002B5D44 /* HabitTimerLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitTimerLiveActivity.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF01 /* ParkingActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ParkingActivityAttributes.swift; path = TestApp/Features/Places/LiveActivity/ParkingActivityAttributes.swift; sourceTree = SOURCE_ROOT; };
+		AA11BB22CC33DD44EE55FF03 /* ParkingLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParkingLiveActivity.swift; sourceTree = "<group>"; };
 		D1CE0F01301CFCEB002B5D44 /* TestAppNotificationContent.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TestAppNotificationContent.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D1CE0F02301CFCEB002B5D44 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D1CE0F03301CFCEB002B5D44 /* NotificationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationViewController.swift; sourceTree = "<group>"; };
@@ -146,6 +150,8 @@
 				C4C6DF17301CFCEB002B5D44 /* HabitTimerLiveActivity.swift */,
 				C4C6DF05301CFCEB002B5D44 /* TrackingActivityAttributes.swift */,
 				C4C6DF15301CFCEB002B5D44 /* HabitTimerAttributes.swift */,
+				AA11BB22CC33DD44EE55FF03 /* ParkingLiveActivity.swift */,
+				AA11BB22CC33DD44EE55FF01 /* ParkingActivityAttributes.swift */,
 				C4C6DF02301CFCEB002B5D44 /* Info.plist */,
 			);
 			path = TestAppWidget;
@@ -351,6 +357,8 @@
 				C4C6DF08301CFCEB002B5D44 /* TrackingActivityAttributes.swift in Sources */,
 				C4C6DF16301CFCEB002B5D44 /* HabitTimerAttributes.swift in Sources */,
 				C4C6DF18301CFCEB002B5D44 /* HabitTimerLiveActivity.swift in Sources */,
+				AA11BB22CC33DD44EE55FF02 /* ParkingActivityAttributes.swift in Sources */,
+				AA11BB22CC33DD44EE55FF04 /* ParkingLiveActivity.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

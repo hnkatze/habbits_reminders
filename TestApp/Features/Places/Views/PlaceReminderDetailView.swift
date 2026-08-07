@@ -15,6 +15,7 @@ struct PlaceReminderDetailView: View {
   @Environment(\.modelContext) private var context
   @Environment(LocationManager.self) private var locationManager
   @Environment(LiveActivityManager.self) private var liveActivity
+  @Environment(ParkingTimerManager.self) private var parkingTimer
 
   @State private var newItem = ""
   @State private var showLimitAlert = false
@@ -173,6 +174,22 @@ struct PlaceReminderDetailView: View {
             in: Date.now...,
             displayedComponents: [.date, .hourAndMinute]
           )
+
+          if parkingTimer.isRunning(reminder) {
+            Button(role: .destructive) {
+              Task { await parkingTimer.stop() }
+            } label: {
+              Label("Stop Lock Screen timer", systemImage: "stop.circle.fill")
+            }
+          } else if expiry > .now {
+            Button {
+              parkingTimer.start(parking: reminder, expiry: expiry)
+            } label: {
+              Label("Show on Lock Screen", systemImage: "timer")
+            }
+            .disabled(parkingTimer.isRunning)
+          }
+
           Button(role: .destructive) {
             reminder.parkingExpiresAt = nil
           } label: {

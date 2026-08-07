@@ -31,6 +31,8 @@ struct HabitsListView: View {
   @State private var liveActivity = LiveActivityManager()
   // Drives the habit focus-timer Live Activity; shared to the habit detail.
   @State private var habitTimer = HabitTimerManager()
+  // Drives the parking-meter Live Activity; shared to the place detail.
+  @State private var parkingTimer = ParkingTimerManager()
 
   var body: some View {
     NavigationStack {
@@ -135,6 +137,7 @@ struct HabitsListView: View {
     .environment(locationManager)
     .environment(liveActivity)
     .environment(habitTimer)
+    .environment(parkingTimer)
     // Every new fix, if an activity is tracking, refresh its distance. This
     // keeps firing in the background because tracking enables background
     // location updates while it's active.
