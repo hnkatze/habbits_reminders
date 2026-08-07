@@ -1,33 +1,38 @@
 //
-//  AddPlaceReminderView.swift
+//  PlaceReminderFormView.swift
 //  TestApp
 //
-//  Create a location reminder: name, a place, radius, and content that is
-//  either a text note or a checklist. A place can be set three ways — search by
-//  name, tap it on the map, or "use my location" — with a pasted Maps link kept
-//  as a fallback option.
+//  Create or edit a location reminder. Passing `editing:` switches modes:
+//  - Create: a guided flow — pick a type, set a location, and the rest of the
+//    fields (name, radius, content, appearance) reveal once a place is chosen.
+//  - Edit: every section is shown at once (a direct form). The checklist itself
+//    is managed from the detail screen, so this form never touches items in edit
+//    mode. Saving an edit re-arms the arrival geofence with the fresh data.
 //
 
 import CoreLocation
 import SwiftData
 import SwiftUI
 
-struct AddPlaceReminderView: View {
+struct PlaceReminderFormView: View {
   @Environment(\.modelContext) private var context
   @Environment(\.dismiss) private var dismiss
 
-  @State private var name = ""
-  @State private var kind: PlaceKind = .generic
-  @State private var iconName = "cart.fill"
-  @State private var colorHex = "#007AFF"
+  // nil → create a new place; non-nil → edit this one.
+  private let editing: PlaceReminder?
+
+  @State private var name: String
+  @State private var kind: PlaceKind
+  @State private var iconName: String
+  @State private var colorHex: String
 
   @State private var coordinate: CLLocationCoordinate2D?
-  @State private var radius: Double = 150
+  @State private var radius: Double
 
   // Parking-only extras.
-  @State private var parkingSpot = ""
-  @State private var setParkingMeter = false
-  @State private var parkingExpiry = Date.now.addingTimeInterval(3600)
+  @State private var parkingSpot: String
+  @State private var setParkingMeter: Bool
+  @State private var parkingExpiry: Date
 
   // Search-by-name state.
   @State private var searchQuery = ""
@@ -38,15 +43,15 @@ struct AddPlaceReminderView: View {
   @State private var mapLink = ""
   @State private var resolvingLink = false
 
-  @State private var isList = false
-  @State private var note = ""
+  // Content.
+  @State private var isList: Bool
+  @State private var note: String
   @State private var newItem = ""
-  @State private var draftItems: [DraftItem] = []
+  @State private var draftItems: [DraftItem]
 
   @State private var locationManager = LocationManager()
   @State private var awaitingCurrentLocation = false
   @State private var showLimitAlert = false
-  @FocusState private var nameFocused: Bool
 
   private let icons = [
     "cart.fill", "bag.fill", "fork.knife", "pills.fill",
@@ -55,6 +60,29 @@ struct AddPlaceReminderView: View {
   ]
   private let colors = ["#007AFF", "#FB0021", "#FF9500", "#34C759", "#AF52DE", "#FF2D55"]
 
+  init(editing: PlaceReminder? = nil) {
+    self.editing = editing
+    _name = State(initialValue: editing?.name ?? "")
+    _kind = State(initialValue: editing?.kind ?? .generic)
+    _iconName = State(initialValue: editing?.iconName ?? "cart.fill")
+    _colorHex = State(initialValue: editing?.colorHex ?? "#007AFF")
+    _coordinate = State(initialValue: editing.map(\.coordinate))
+    _radius = State(initialValue: editing?.radius ?? 150)
+    _parkingSpot = State(initialValue: editing?.parkingSpot ?? "")
+    _setParkingMeter = State(initialValue: editing?.parkingExpiresAt != nil)
+    _parkingExpiry = State(
+      initialValue: editing?.parkingExpiresAt ?? Date.now.addingTimeInterval(3600))
+    _isList = State(initialValue: editing?.isList ?? false)
+    _note = State(initialValue: editing?.note ?? "")
+    _draftItems = State(initialValue: [])
+  }
+
+  private var isEditing: Bool { editing != nil }
+
+  // In create mode the tail sections appear only after a place is chosen; in
+  // edit mode everything is shown at once.
+  private var showsDetails: Bool { isEditing || coordinate != nil }
+
   private var isValid: Bool {
     !name.trimmingCharacters(in: .whitespaces).isEmpty && coordinate != nil
   }
@@ -62,11 +90,6 @@ struct AddPlaceReminderView: View {
   var body: some View {
     NavigationStack {
       Form {
-        Section("Name") {
-          TextField("e.g. Supermarket", text: $name)
-            .focused($nameFocused)
-        }
-
         Section("Type") {
           Picker("Type", selection: $kind) {
             ForEach(PlaceKind.allCases) { kind in
@@ -75,46 +98,39 @@ struct AddPlaceReminderView: View {
           }
         }
 
-        Section("Icon") {
-          IconPickerGrid(icons: icons, selection: $iconName, tintHex: colorHex)
-        }
-        Section("Color") {
-          ColorPickerRow(colors: colors, selection: $colorHex)
-        }
-        Section("Location") { locationSection }
-
         if kind == .parking {
           Section("Parking") { parkingSection }
         }
 
-        Section("Content") {
-          Picker("Type", selection: $isList) {
-            Text("Note").tag(false)
-            Text("List").tag(true)
-          }
-          .pickerStyle(.segmented)
+        Section("Location") { locationSection }
 
-          if isList {
-            listEditor
-          } else {
-            TextField("Note (e.g. buy milk)", text: $note, axis: .vertical)
-              .lineLimit(1...4)
+        if showsDetails {
+          Section("Name") {
+            TextField("e.g. Supermarket", text: $name)
+          }
+
+          Section("Content") { contentSection }
+
+          Section {
+            DisclosureGroup("Appearance") {
+              IconPickerGrid(icons: icons, selection: $iconName, tintHex: colorHex)
+              ColorPickerRow(colors: colors, selection: $colorHex)
+            }
           }
         }
       }
       .task(id: mapLink) { await resolveLink() }
       .task(id: searchQuery) { await runSearch() }
-      .navigationTitle("New Place Reminder")
+      .navigationTitle(isEditing ? "Edit Place" : "New Place Reminder")
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
           Button("Cancel") { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
-          Button("Save") { save() }
+          Button(isEditing ? "Done" : "Save") { save() }
             .disabled(!isValid)
         }
       }
-      .onAppear { nameFocused = true }
       .onChange(of: kind) { applyKindPreset() }
       .onChange(of: coordinate?.latitude) { autofillNameIfNeeded() }
       .onChange(of: locationManager.currentLocation?.coordinate.latitude) {
@@ -205,6 +221,51 @@ struct AddPlaceReminderView: View {
     }
   }
 
+  // MARK: - Parking
+  @ViewBuilder
+  private var parkingSection: some View {
+    TextField("Spot (e.g. B-24)", text: $parkingSpot)
+    Toggle("Set meter time", isOn: $setParkingMeter)
+    if setParkingMeter {
+      DatePicker(
+        "Expires",
+        selection: $parkingExpiry,
+        in: Date.now...,
+        displayedComponents: [.date, .hourAndMinute]
+      )
+    }
+  }
+
+  // MARK: - Content
+  @ViewBuilder
+  private var contentSection: some View {
+    Picker("Type", selection: $isList) {
+      Text("Note").tag(false)
+      Text("List").tag(true)
+    }
+    .pickerStyle(.segmented)
+
+    if isList {
+      if isEditing {
+        Text("Manage the checklist from the place screen.")
+          .font(.caption).foregroundStyle(.secondary)
+      } else {
+        listEditor
+      }
+    } else {
+      TextField("Note (e.g. buy milk)", text: $note, axis: .vertical)
+        .lineLimit(1...4)
+    }
+  }
+
+  // Applying a kind presets the icon, tint, and content mode to sensible
+  // defaults for that template — the user can still override any of them after.
+  private func applyKindPreset() {
+    iconName = kind.defaultIcon
+    colorHex = kind.defaultColorHex
+    isList = kind.prefersList
+  }
+
   // MARK: - Place selection
   private func select(_ result: PlaceSearchResult) {
     // Fill the name from the result before moving the pin, so the reverse-geocode
@@ -215,7 +276,6 @@ struct AddPlaceReminderView: View {
     coordinate = result.coordinate
     searchResults = []
     searchQuery = ""
-    nameFocused = false
   }
 
   private func runSearch() async {
@@ -280,30 +340,7 @@ struct AddPlaceReminderView: View {
     resolvingLink = false
   }
 
-  // MARK: - Parking
-  @ViewBuilder
-  private var parkingSection: some View {
-    TextField("Spot (e.g. B-24)", text: $parkingSpot)
-    Toggle("Set meter time", isOn: $setParkingMeter)
-    if setParkingMeter {
-      DatePicker(
-        "Expires",
-        selection: $parkingExpiry,
-        in: Date.now...,
-        displayedComponents: [.date, .hourAndMinute]
-      )
-    }
-  }
-
-  // Applying a kind presets the icon, tint, and content mode to sensible
-  // defaults for that template — the user can still override any of them after.
-  private func applyKindPreset() {
-    iconName = kind.defaultIcon
-    colorHex = kind.defaultColorHex
-    isList = kind.prefersList
-  }
-
-  // MARK: - List editor
+  // MARK: - List editor (create mode only)
   @ViewBuilder
   private var listEditor: some View {
     ForEach(draftItems) { item in
@@ -328,10 +365,59 @@ struct AddPlaceReminderView: View {
   // MARK: - Save
   private func save() {
     guard let coordinate else { return }
+    if let place = editing {
+      applyEdits(to: place, coordinate: coordinate)
+    } else {
+      createNew(coordinate: coordinate)
+    }
+  }
 
+  private func applyEdits(to place: PlaceReminder, coordinate: CLLocationCoordinate2D) {
+    let trimmedName = name.trimmingCharacters(in: .whitespaces)
+    let isParking = kind == .parking
+    let spot = parkingSpot.trimmingCharacters(in: .whitespaces)
+
+    place.name = trimmedName
+    place.kind = kind
+    place.iconName = iconName
+    place.colorHex = colorHex
+    place.latitude = coordinate.latitude
+    place.longitude = coordinate.longitude
+    place.radius = radius
+    place.isList = isList
+    if !isList {
+      place.note = note.trimmingCharacters(in: .whitespaces)
+    }
+    place.parkingSpot = isParking && !spot.isEmpty ? spot : nil
+    place.parkingExpiresAt = isParking && setParkingMeter ? parkingExpiry : nil
+
+    // The arrival notification carries the name/icon/color/coords, so re-arm it
+    // with the fresh data whenever the place is active.
+    if place.isActive {
+      NotificationManager.cancelLocationReminder(id: place.notificationID)
+      locationManager.requestAlwaysAuthorization()
+      let id = place.notificationID
+      let name = trimmedName
+      let icon = iconName
+      let color = colorHex
+      let lat = coordinate.latitude
+      let lng = coordinate.longitude
+      let currentRadius = radius
+      Task {
+        if await NotificationManager.requestAuthorization() {
+          NotificationManager.scheduleLocationReminder(
+            id: id, habitName: name, iconName: icon, colorHex: color,
+            latitude: lat, longitude: lng, radius: currentRadius)
+        }
+      }
+    }
+
+    dismiss()
+  }
+
+  private func createNew(coordinate: CLLocationCoordinate2D) {
     // At the limit, save the place muted and don't arm its geofence.
     let atLimit = armedPlaceCount() >= PlaceReminder.activeLimit
-
     let isParking = kind == .parking
     let spot = parkingSpot.trimmingCharacters(in: .whitespaces)
 

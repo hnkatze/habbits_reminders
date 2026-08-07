@@ -120,7 +120,7 @@ struct HabitsListView: View {
         }
       }
       .sheet(isPresented: $showingAddHabit) { AddHabitView() }
-      .sheet(isPresented: $showingAddPlace) { AddPlaceReminderView() }
+      .sheet(isPresented: $showingAddPlace) { PlaceReminderFormView() }
       .sheet(isPresented: $showingStats) { HabitStatsView() }
       .sheet(isPresented: $showingMap) { PlacesMapView() }
     }

@@ -19,6 +19,7 @@ struct PlaceReminderDetailView: View {
 
   @State private var newItem = ""
   @State private var showLimitAlert = false
+  @State private var showingEdit = false
 
   private var color: Color { Color(hex: reminder.colorHex) }
 
@@ -35,12 +36,18 @@ struct PlaceReminderDetailView: View {
     .toolbarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .primaryAction) {
+        Button("Edit") { showingEdit = true }
+      }
+      ToolbarItem(placement: .primaryAction) {
         if let shareURL {
           ShareLink(item: shareURL) {
             Image(systemName: "square.and.arrow.up")
           }
         }
       }
+    }
+    .sheet(isPresented: $showingEdit) {
+      PlaceReminderFormView(editing: reminder)
     }
     .alert("Active places limit reached", isPresented: $showLimitAlert) {
       Button("OK", role: .cancel) {}
