@@ -25,6 +25,7 @@ struct PlaceReminderDetailView: View {
     List {
       hero
       statusSection
+      parkingSection
       trackingSection
       contentSection
       detailsSection
@@ -131,6 +132,60 @@ struct PlaceReminderDetailView: View {
           ? "You'll be reminded when you arrive here."
           : "Muted — no reminder at this place. Turn it back on anytime."
       )
+    }
+  }
+
+  // MARK: - Parking (spot + meter countdown)
+  // Non-nil string binding so an empty field clears the stored optional.
+  private var parkingSpotBinding: Binding<String> {
+    Binding(
+      get: { reminder.parkingSpot ?? "" },
+      set: { reminder.parkingSpot = $0.isEmpty ? nil : $0 }
+    )
+  }
+
+  private var parkingExpiryBinding: Binding<Date> {
+    Binding(
+      get: { reminder.parkingExpiresAt ?? .now.addingTimeInterval(3600) },
+      set: { reminder.parkingExpiresAt = $0 }
+    )
+  }
+
+  @ViewBuilder
+  private var parkingSection: some View {
+    if reminder.kind == .parking {
+      Section("Parking") {
+        TextField("Spot (e.g. B-24)", text: parkingSpotBinding)
+
+        if let expiry = reminder.parkingExpiresAt {
+          LabeledContent("Meter") {
+            if expiry > .now {
+              Text(timerInterval: Date.now...expiry, countsDown: true)
+                .monospacedDigit()
+                .foregroundStyle(color)
+            } else {
+              Text("Expired").foregroundStyle(.red)
+            }
+          }
+          DatePicker(
+            "Expires",
+            selection: parkingExpiryBinding,
+            in: Date.now...,
+            displayedComponents: [.date, .hourAndMinute]
+          )
+          Button(role: .destructive) {
+            reminder.parkingExpiresAt = nil
+          } label: {
+            Label("Clear meter", systemImage: "timer.slash")
+          }
+        } else {
+          Button {
+            reminder.parkingExpiresAt = .now.addingTimeInterval(3600)
+          } label: {
+            Label("Set meter time", systemImage: "timer")
+          }
+        }
+      }
     }
   }
 

@@ -26,6 +26,14 @@ struct PlaceReminderRow: View {
     return distanceMeters <= reminder.radius * 2
   }
 
+  // Summary glyph reflects the kind: a running meter, a checklist, or a note.
+  private var summaryIcon: String {
+    switch reminder.kind {
+    case .parking: reminder.parkingExpiresAt != nil ? "timer" : "parkingsign"
+    default: reminder.isList ? "checklist" : "note.text"
+    }
+  }
+
   var body: some View {
     HStack(spacing: 14) {
       iconChip
@@ -34,13 +42,21 @@ struct PlaceReminderRow: View {
         HStack(spacing: 5) {
           Text(reminder.name)
             .font(.body.weight(.semibold))
+          if reminder.kind != .generic {
+            Text(reminder.kind.label)
+              .font(.caption2.weight(.semibold))
+              .padding(.horizontal, 6)
+              .padding(.vertical, 2)
+              .background(color.opacity(0.15), in: .capsule)
+              .foregroundStyle(color)
+          }
           if !reminder.isActive {
             Image(systemName: "bell.slash.fill")
               .font(.caption2)
               .foregroundStyle(.secondary)
           }
         }
-        Label(reminder.summary, systemImage: reminder.isList ? "checklist" : "note.text")
+        Label(reminder.summary, systemImage: summaryIcon)
           .font(.caption)
           .foregroundStyle(.secondary)
           .labelStyle(.titleAndIcon)
