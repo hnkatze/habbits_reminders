@@ -223,7 +223,8 @@ struct PlaceReminderDetailView: View {
           locationManager.startBackgroundUpdates()
           liveActivity.start(tracking: reminder, from: locationManager.currentLocation)
         } label: {
-          Label("Track with Live Activity", systemImage: "location.circle.fill")
+          Label("Show Live Activity", systemImage: "star.circle.fill")
+            .foregroundStyle(color)
         }
         .disabled(liveActivity.isTracking)
       }
@@ -232,7 +233,9 @@ struct PlaceReminderDetailView: View {
         Text("Stop the current tracking to follow this place instead.")
       } else {
         Text(
-          "Shows live distance on the Lock Screen and Dynamic Island while you head there. Uses background location only while active."
+          reminder.isList
+            ? "Shows live distance on the Lock Screen while you head there, then reveals your checklist when you arrive. Uses background location only while active."
+            : "Shows live distance on the Lock Screen while you head there, then reveals your note when you arrive. Uses background location only while active."
         )
       }
     }

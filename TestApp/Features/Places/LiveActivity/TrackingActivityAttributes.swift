@@ -28,20 +28,39 @@
       }
     }
 
+    // One checklist line, snapshotted when tracking begins.
+    public struct Item: Codable, Hashable {
+      public var text: String
+      public var done: Bool
+
+      public init(text: String, done: Bool) {
+        self.text = text
+        self.done = done
+      }
+    }
+
     // Fixed for the life of the activity.
     public var placeName: String
     public var iconName: String
     public var colorHex: String
     // Distance (meters) when tracking began — the baseline for the route track.
     public var startDistanceMeters: Double
+    // The place's content, revealed on the Lock Screen once you arrive.
+    public var isList: Bool
+    public var note: String
+    public var items: [Item]
 
     public init(
-      placeName: String, iconName: String, colorHex: String, startDistanceMeters: Double
+      placeName: String, iconName: String, colorHex: String, startDistanceMeters: Double,
+      isList: Bool = false, note: String = "", items: [Item] = []
     ) {
       self.placeName = placeName
       self.iconName = iconName
       self.colorHex = colorHex
       self.startDistanceMeters = startDistanceMeters
+      self.isList = isList
+      self.note = note
+      self.items = items
     }
   }
 #endif

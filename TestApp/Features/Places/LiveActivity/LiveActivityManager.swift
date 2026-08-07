@@ -47,9 +47,15 @@ final class LiveActivityManager {
       // Never zero, so the route track always has a sensible baseline.
       let start = max(meters, place.radius)
 
+      // Snapshot the content for the Lock Screen. Cap the list so the activity
+      // payload stays comfortably under ActivityKit's ~4 KB budget.
+      let items = place.items.prefix(12).map {
+        TrackingActivityAttributes.Item(text: $0.text, done: $0.isDone)
+      }
       let attributes = TrackingActivityAttributes(
         placeName: place.name, iconName: place.iconName, colorHex: place.colorHex,
-        startDistanceMeters: start)
+        startDistanceMeters: start,
+        isList: place.isList, note: place.note, items: Array(items))
       let state = TrackingActivityAttributes.ContentState(
         distanceMeters: meters, arrived: arrived)
 

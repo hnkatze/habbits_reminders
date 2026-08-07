@@ -37,11 +37,28 @@ struct TrackingLiveActivity: Widget {
             .foregroundStyle(arrived ? AnyShapeStyle(.green) : AnyShapeStyle(color))
         }
         DynamicIslandExpandedRegion(.bottom) {
-          RouteTrack(
-            progress: TrackingLiveActivity.progress(context),
-            color: color, arrived: arrived
-          )
-          .padding(.top, 4)
+          if arrived, context.attributes.isList, !context.attributes.items.isEmpty {
+            Label(
+              "\(context.attributes.items.filter { !$0.done }.count) of \(context.attributes.items.count) items left",
+              systemImage: "checklist"
+            )
+            .font(.caption.weight(.medium))
+            .foregroundStyle(color)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 4)
+          } else if arrived, !context.attributes.note.isEmpty {
+            Text(context.attributes.note)
+              .font(.caption).lineLimit(1)
+              .foregroundStyle(.secondary)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.top, 4)
+          } else {
+            RouteTrack(
+              progress: TrackingLiveActivity.progress(context),
+              color: color, arrived: arrived
+            )
+            .padding(.top, 4)
+          }
         }
       } compactLeading: {
         Image(systemName: arrived ? "checkmark.circle.fill" : "figure.walk")
@@ -76,35 +93,82 @@ private struct TrackingLockScreenView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
-      HStack(spacing: 12) {
-        Image(systemName: context.attributes.iconName)
-          .font(.title3.weight(.semibold))
-          .foregroundStyle(.white)
-          .frame(width: 40, height: 40)
-          .background(color.gradient, in: .rect(cornerRadius: 11, style: .continuous))
+      header
 
-        VStack(alignment: .leading, spacing: 1) {
-          Text(context.attributes.placeName).font(.headline).lineLimit(1)
-          Text(context.state.arrived ? "You've arrived" : "On your way")
-            .font(.caption).foregroundStyle(.secondary)
-        }
+      if context.state.arrived {
+        arrivedContent
+          .transition(.opacity.combined(with: .move(edge: .bottom)))
+      } else {
+        RouteTrack(
+          progress: TrackingLiveActivity.progress(context),
+          color: color, arrived: false)
+      }
+    }
+    .animation(.snappy, value: context.state.arrived)
+  }
 
-        Spacer()
+  private var header: some View {
+    HStack(spacing: 12) {
+      Image(systemName: context.attributes.iconName)
+        .font(.title3.weight(.semibold))
+        .foregroundStyle(.white)
+        .frame(width: 40, height: 40)
+        .background(color.gradient, in: .rect(cornerRadius: 11, style: .continuous))
 
-        if context.state.arrived {
-          Image(systemName: "checkmark.circle.fill").font(.title).foregroundStyle(.green)
-        } else {
-          VStack(alignment: .trailing, spacing: 0) {
-            Text(WidgetFormat.distance(context.state.distanceMeters))
-              .font(.title3.weight(.bold)).monospacedDigit()
-            Text("to go").font(.caption2).foregroundStyle(.secondary)
-          }
-        }
+      VStack(alignment: .leading, spacing: 1) {
+        Text(context.attributes.placeName).font(.headline).lineLimit(1)
+        Text(context.state.arrived ? "You've arrived" : "On your way")
+          .font(.caption).foregroundStyle(.secondary)
       }
 
-      RouteTrack(
-        progress: TrackingLiveActivity.progress(context),
-        color: color, arrived: context.state.arrived)
+      Spacer()
+
+      if context.state.arrived {
+        Image(systemName: "checkmark.circle.fill")
+          .font(.title).foregroundStyle(.green)
+          .symbolEffect(.bounce, value: context.state.arrived)
+      } else {
+        VStack(alignment: .trailing, spacing: 0) {
+          Text(WidgetFormat.distance(context.state.distanceMeters))
+            .font(.title3.weight(.bold)).monospacedDigit()
+            .contentTransition(.numericText())
+          Text("to go").font(.caption2).foregroundStyle(.secondary)
+        }
+      }
+    }
+  }
+
+  // Revealed once you arrive: the shopping list, the note, or a simple "here".
+  @ViewBuilder
+  private var arrivedContent: some View {
+    if context.attributes.isList, !context.attributes.items.isEmpty {
+      VStack(alignment: .leading, spacing: 6) {
+        ForEach(Array(context.attributes.items.prefix(4).enumerated()), id: \.offset) { _, item in
+          HStack(spacing: 8) {
+            Image(systemName: item.done ? "checkmark.circle.fill" : "circle")
+              .foregroundStyle(item.done ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
+            Text(item.text)
+              .strikethrough(item.done)
+              .foregroundStyle(item.done ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+              .lineLimit(1)
+            Spacer(minLength: 0)
+          }
+          .font(.subheadline)
+        }
+        if context.attributes.items.count > 4 {
+          Text("+\(context.attributes.items.count - 4) more")
+            .font(.caption).foregroundStyle(.secondary)
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+    } else if !context.attributes.note.isEmpty {
+      HStack(spacing: 8) {
+        Image(systemName: "note.text").foregroundStyle(color)
+        Text(context.attributes.note).font(.subheadline).lineLimit(2)
+        Spacer(minLength: 0)
+      }
+    } else {
+      Text("You're here.").font(.subheadline).foregroundStyle(.secondary)
     }
   }
 }
